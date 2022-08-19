@@ -1,3 +1,7 @@
+'''
+Taken from https://github.com/bshall/VectorQuantizedVAE and used on pairs of MNIST images
+'''
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -35,6 +39,7 @@ class VQEmbeddingEMA(nn.Module):
         encodings = F.one_hot(indices, M).float()
         quantized = torch.gather(self.embedding, 1, indices.unsqueeze(-1).expand(-1, -1, D))
         quantized = quantized.view_as(x)
+        print('quantized size',quantized.shape)
 
         if self.training:
             self.ema_count = self.decay * self.ema_count + (1 - self.decay) * torch.sum(encodings, dim=1)
@@ -80,12 +85,15 @@ class VQEmbeddingGSSoft(nn.Module):
         distances = distances.view(N, B, H, W, M)
 
         dist = RelaxedOneHotCategorical(0.5, logits=-distances)
+        print('distances shape',distances.shape)
         if self.training:
             samples = dist.rsample().view(N, -1, M)
         else:
             samples = torch.argmax(dist.probs, dim=-1)
             samples = F.one_hot(samples, M).float()
             samples = samples.view(N, -1, M)
+
+        print('sample size',samples.shape)
 
         quantized = torch.bmm(samples, self.embedding)
         quantized = quantized.view_as(x)
@@ -120,7 +128,7 @@ class Encoder(nn.Module):
     def __init__(self, channels, latent_dim, embedding_dim):
         super(Encoder, self).__init__()
         self.encoder = nn.Sequential(
-            nn.Conv2d(3, channels, 4, 2, 1, bias=False),
+            nn.Conv2d(2, channels, 4, 2, 1, bias=False),
             nn.BatchNorm2d(channels),
             nn.ReLU(True),
             nn.Conv2d(channels, channels, 4, 2, 1, bias=False),
@@ -129,8 +137,12 @@ class Encoder(nn.Module):
             Residual(channels),
             nn.Conv2d(channels, latent_dim * embedding_dim, 1)
         )
+        self.channels = channels
+        self.latent_dim = latent_dim
+        self.embedding_dim = embedding_dim
 
     def forward(self, x):
+        # print('encoder output',self.encoder(x).shape, self.latent_dim, self.embedding_dim, self.channels)
         return self.encoder(x)
 
 
@@ -148,13 +160,17 @@ class Decoder(nn.Module):
             nn.ConvTranspose2d(channels, channels, 4, 2, 1, bias=False),
             nn.BatchNorm2d(channels),
             nn.ReLU(True),
-            nn.Conv2d(channels, 3 * 256, 1)
+            nn.Conv2d(channels, 2 * 256, 1)
         )
+        self.channels = channels
+        self.latent_dim = latent_dim
+        self.embedding_dim = embedding_dim
 
     def forward(self, x):
         x = self.decoder(x)
+        # print('dencoder output',x.shape, self.latent_dim, self.embedding_dim, self.channels)
         B, _, H, W = x.size()
-        x = x.view(B, 3, 256, H, W).permute(0, 1, 3, 4, 2)
+        x = x.view(B, 2, 256, H, W).permute(0, 1, 3, 4, 2)
         dist = Categorical(logits=x)
         return dist
 
