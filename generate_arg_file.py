@@ -7,7 +7,7 @@ import os
 ################################
 # VQVAE ARGUMENTS
 ################################
-SUBFOLDER_NAME = 'VQVAE_0'
+SUBFOLDER_NAME = 'VQVAE_3'
 ARG_FILE_NAME = 'arguments_' + SUBFOLDER_NAME +'.json'
 ARGUMENT_FILE = '/nfs/gatsbystor/williamw/svae/arg_files/'+ARG_FILE_NAME
 
@@ -30,13 +30,13 @@ mainArgs = {
 'MAIN_FOLDER': SUBFOLDER_NAME,
 'num_workers': 4,
 'resume': None,
-'channels': 256,
-'latent_dim': 10,
-'num_embeddings': 128,
-'embedding_dim': 32,
+'channels': 128,
+'latent_dim': 1,
+'num_embeddings': 10,
+'embedding_dim': 64,
 'learning_rate': 5e-4,
-'batch_size': 128,
-'num_training_steps': 25000
+'batch_size': 16,
+'num_epochs': 200
 }
 
 MODEL_TYPES = ['VQVAE','GSSOFT']

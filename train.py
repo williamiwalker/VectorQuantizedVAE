@@ -121,24 +121,23 @@ def train_gssoft(args, saveFolder):
     # test_dataloader = DataLoader(test_dataset, batch_size=64, shuffle=True, drop_last=True,
     #                              num_workers=args.num_workers, pin_memory=True)
 
-    num_epochs = args.num_training_steps // len(training_dataloader) + 1
-    start_epoch = global_step // len(training_dataloader) + 1
+    num_epochs = args.num_epochs #args.num_training_steps // len(training_dataloader) + 1
+    # start_epoch = global_step // len(training_dataloader) + 1
 
     lossTrack = np.zeros(num_epochs)
 
-    print('num epochs', num_epochs, args.num_training_steps, len(training_dataloader))
+    # print('num epochs', num_epochs, args.num_training_steps, len(training_dataloader))
 
     #####################################################################################
 
-    N = 3 * 32 * 32
+    # N = 3 * 32 * 32
+    N = 2 * 28 * 28
 
-    for epoch in range(start_epoch, num_epochs + 1):
+    for epoch in range(num_epochs):
         model.train()
         average_logp = average_KL = average_elbo = average_bpd = average_perplexity = 0
         for i, (images, _) in enumerate(tqdm(training_dataloader), 1):
             images = images.to(device)
-
-            print('image size',images.shape)
 
             dist, KL, perplexity = model(images)
             targets = (images + 0.5) * 255
@@ -153,6 +152,8 @@ def train_gssoft(args, saveFolder):
             optimizer.step()
 
             global_step += 1
+
+            # print('get samples', model.getDiscreteLatent(images).shape)
 
             # if global_step % 212 == 0:
             #     save_checkpoint(model, optimizer, global_step, lossTrack, checkpoint_dir)
@@ -169,7 +170,7 @@ def train_gssoft(args, saveFolder):
         # writer.add_scalar("bpd/train", average_bpd, epoch)
         # writer.add_scalar("perplexity/train", average_perplexity, epoch)
 
-        lossTrack[epoch] = average_elbo.detach().numpy()
+        lossTrack[epoch] = average_elbo
 
         # model.eval()
         # average_logp = average_KL = average_elbo = average_bpd = average_perplexity = 0
@@ -299,19 +300,21 @@ def train_vqvae(args, saveFolder):
     # test_dataloader = DataLoader(test_dataset, batch_size=64, shuffle=True, drop_last=True,
     #                              num_workers=args.num_workers, pin_memory=True)
 
-    num_epochs = args.num_training_steps // len(training_dataloader) + 1
-    start_epoch = global_step // len(training_dataloader) + 1
+    num_epochs = args.num_epochs #args.num_training_steps // len(training_dataloader) + 1
+    # start_epoch = global_step // len(training_dataloader) + 1
 
     lossTrack = np.zeros(num_epochs)
 
-    print('num epochs', num_epochs, args.num_training_steps, len(training_dataloader))
+    # print('num epochs', num_epochs, args.num_training_steps, len(training_dataloader))
 
     #####################################################################################
 
-    N = 3 * 32 * 32
-    KL = args.latent_dim * 8 * 8 * np.log(args.num_embeddings)
+    # N = 3 * 32 * 32
+    # KL = args.latent_dim * 8 * 8 * np.log(args.num_embeddings)
+    N = 2 * 28 * 28
+    KL = args.latent_dim * np.log(args.num_embeddings)
 
-    for epoch in range(start_epoch, num_epochs + 1):
+    for epoch in range(0, num_epochs):
         model.train()
         average_logp = average_vq_loss = average_elbo = average_bpd = average_perplexity = 0
         for i, (images, _) in enumerate(tqdm(training_dataloader), 1):
@@ -334,6 +337,8 @@ def train_vqvae(args, saveFolder):
 
             global_step += 1
 
+            # print('get samples', model.getDiscreteLatent(images).shape)
+
 
             average_logp += (logp.item() - average_logp) / i
             average_vq_loss += (vq_loss.item() - average_vq_loss) / i
@@ -348,7 +353,7 @@ def train_vqvae(args, saveFolder):
         # writer.add_scalar("bpd/train", average_bpd, epoch)
         # writer.add_scalar("perplexity/train", average_perplexity, epoch)
 
-        lossTrack[epoch] = average_elbo.detach().numpy()
+        lossTrack[epoch] = average_elbo
 
         # model.eval()
         # average_logp = average_vq_loss = average_elbo = average_bpd = average_perplexity = 0
@@ -417,7 +422,7 @@ SLURM_ARRAY_TASK_ID = sys.argv[1]
 print('SLURM_ARRAY_TASK_ID ',SLURM_ARRAY_TASK_ID)
 
 # ARG_FILE_NAME = 'arguments_test_all_0.json'
-ARG_FILE_NAME = 'arguments_VQVAE_0.json'
+ARG_FILE_NAME = 'arguments_VQVAE_3.json'
 parent_folder = '/nfs/gatsbystor/williamw/svae/'
 # parent_folder = '/home/william/mnt/gatsbystor/implicit_generative/'
 ARGUMENT_FILE = parent_folder + 'arg_files/' + ARG_FILE_NAME

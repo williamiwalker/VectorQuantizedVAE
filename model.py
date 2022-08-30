@@ -34,12 +34,15 @@ class VQEmbeddingEMA(nn.Module):
                                   torch.sum(x_flat ** 2, dim=2, keepdim=True),
                                   x_flat, self.embedding.transpose(1, 2),
                                   alpha=-2.0, beta=1.0)
-
+        # print('x shape',x.shape)
+        # print('dist shae',distances.shape)
         indices = torch.argmin(distances, dim=-1)
         encodings = F.one_hot(indices, M).float()
+        # print('indices shape',indices.shape)
+        # print('ecodings shape',encodings.shape)
         quantized = torch.gather(self.embedding, 1, indices.unsqueeze(-1).expand(-1, -1, D))
         quantized = quantized.view_as(x)
-        print('quantized size',quantized.shape)
+        # print('quantized size',quantized.shape, self.embedding.shape)
 
         if self.training:
             self.ema_count = self.decay * self.ema_count + (1 - self.decay) * torch.sum(encodings, dim=1)
@@ -61,6 +64,22 @@ class VQEmbeddingEMA(nn.Module):
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10), dim=-1))
 
         return quantized.permute(1, 0, 4, 2, 3).reshape(B, C, H, W), loss, perplexity.sum()
+
+    def getDiscLatent(self, x):
+        B, C, H, W = x.size()
+        N, M, D = self.embedding.size()
+        assert C == N * D
+
+        x = x.view(B, N, D, H, W).permute(1, 0, 3, 4, 2)
+        x_flat = x.detach().reshape(N, -1, D)
+
+        distances = torch.baddbmm(torch.sum(self.embedding ** 2, dim=2).unsqueeze(1) +
+                                  torch.sum(x_flat ** 2, dim=2, keepdim=True),
+                                  x_flat, self.embedding.transpose(1, 2),
+                                  alpha=-2.0, beta=1.0)
+        indices = torch.argmin(distances, dim=-1)
+
+        return indices.permute(1, 0)
 
 
 class VQEmbeddingGSSoft(nn.Module):
@@ -85,7 +104,7 @@ class VQEmbeddingGSSoft(nn.Module):
         distances = distances.view(N, B, H, W, M)
 
         dist = RelaxedOneHotCategorical(0.5, logits=-distances)
-        print('distances shape',distances.shape)
+        # print('distances shape',distances.shape)
         if self.training:
             samples = dist.rsample().view(N, -1, M)
         else:
@@ -93,7 +112,7 @@ class VQEmbeddingGSSoft(nn.Module):
             samples = F.one_hot(samples, M).float()
             samples = samples.view(N, -1, M)
 
-        print('sample size',samples.shape)
+        # print('sample size',samples.shape)
 
         quantized = torch.bmm(samples, self.embedding)
         quantized = quantized.view_as(x)
@@ -106,6 +125,22 @@ class VQEmbeddingGSSoft(nn.Module):
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10), dim=-1))
 
         return quantized.permute(1, 0, 4, 2, 3).reshape(B, C, H, W), KL, perplexity.sum()
+
+    def getDiscLatent(self, x):
+        B, C, H, W = x.size()
+        N, M, D = self.embedding.size()
+        assert C == N * D
+
+        x = x.view(B, N, D, H, W).permute(1, 0, 3, 4, 2)
+        x_flat = x.detach().reshape(N, -1, D)
+
+        distances = torch.baddbmm(torch.sum(self.embedding ** 2, dim=2).unsqueeze(1) +
+                                  torch.sum(x_flat ** 2, dim=2, keepdim=True),
+                                  x_flat, self.embedding.transpose(1, 2),
+                                  alpha=-2.0, beta=1.0)
+        indices = torch.argmin(distances, dim=-1)
+
+        return indices.permute(1, 0)
 
 
 class Residual(nn.Module):
@@ -137,13 +172,17 @@ class Encoder(nn.Module):
             Residual(channels),
             nn.Conv2d(channels, latent_dim * embedding_dim, 1)
         )
+        self.linear = nn.Linear(latent_dim * embedding_dim * 7 * 7, latent_dim * embedding_dim)  # input
         self.channels = channels
         self.latent_dim = latent_dim
         self.embedding_dim = embedding_dim
 
     def forward(self, x):
+        batchSize = x.shape[0]
         # print('encoder output',self.encoder(x).shape, self.latent_dim, self.embedding_dim, self.channels)
-        return self.encoder(x)
+        y = self.encoder(x)
+        z = self.linear(torch.flatten(y, start_dim=1))
+        return z.view((batchSize, self.latent_dim * self.embedding_dim, 1, 1))
 
 
 class Decoder(nn.Module):
@@ -162,12 +201,16 @@ class Decoder(nn.Module):
             nn.ReLU(True),
             nn.Conv2d(channels, 2 * 256, 1)
         )
+        self.linear = nn.Linear(latent_dim * embedding_dim, latent_dim * embedding_dim * 7 * 7)  # input
+
         self.channels = channels
         self.latent_dim = latent_dim
         self.embedding_dim = embedding_dim
 
     def forward(self, x):
-        x = self.decoder(x)
+        batchSize = x.shape[0]
+        x = self.linear(x.view((batchSize, -1)))
+        x = self.decoder(x.view((batchSize, self.latent_dim * self.embedding_dim, 7, 7)))
         # print('dencoder output',x.shape, self.latent_dim, self.embedding_dim, self.channels)
         B, _, H, W = x.size()
         x = x.view(B, 2, 256, H, W).permute(0, 1, 3, 4, 2)
@@ -185,8 +228,13 @@ class VQVAE(nn.Module):
     def forward(self, x):
         x = self.encoder(x)
         x, loss, perplexity = self.codebook(x)
+        # print('sample size',x.shape)
         dist = self.decoder(x)
         return dist, loss, perplexity
+
+    def getDiscreteLatent(self, x):
+        enc = self.encoder(x)
+        return self.codebook.getDiscLatent(enc)
 
 
 class GSSOFT(nn.Module):
@@ -201,3 +249,7 @@ class GSSOFT(nn.Module):
         x, KL, perplexity = self.codebook(x)
         dist = self.decoder(x)
         return dist, KL, perplexity
+
+    def getDiscreteLatent(self, x):
+        enc = self.encoder(x)
+        return self.codebook.getDiscLatent(enc)
