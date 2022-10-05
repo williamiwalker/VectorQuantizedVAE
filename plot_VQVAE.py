@@ -36,7 +36,7 @@ SLURM_ARRAY_TASK_ID = sys.argv[1]
 print('SLURM_ARRAY_TASK_ID ',SLURM_ARRAY_TASK_ID)
 
 ARG_FILE_NAME = 'arguments_VQVAE_3.json'
-parent_folder = '/nfs/gatsbystor/williamw/svae/'
+parent_folder = '/nfs/gatsbystor/williamw/gprpm_plots/'
 ARGUMENT_FILE = parent_folder + 'arg_files/' + ARG_FILE_NAME
 
 with open(ARGUMENT_FILE) as json_file:

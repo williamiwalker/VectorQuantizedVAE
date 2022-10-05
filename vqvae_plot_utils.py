@@ -12,6 +12,12 @@ import torch
 from torchvision.transforms import ToTensor
 from torchvision import datasets, transforms, utils
 
+def plot_loss(plot_folder, loss_tot):
+    plt.figure()
+    plt.plot(loss_tot)
+    plt.xlabel('Iterations')
+    plt.ylabel('Loss')
+    plt.savefig(plot_folder + 'loss.png')
 
 def plot_VAE_reconst(saveFolder, name, images, outputs):
     # Feed a single batch through the model
@@ -145,9 +151,12 @@ def plot_digit_recognition(saveFolder, name, model, dataloader):
     # test_results = str(np.round(test_accuracy.numpy(), 2))
 
     print('Training Accuracy = ' + str(accuracy))
+
     # acc_tot[exp_cur] = accuracy
 
     # print('Training Accuracy = ' + str(np.round(torch.mean(acc_tot).numpy(), 2))
     #       + ' +/- ' + str(np.round(torch.std(acc_tot).numpy(),2)))
     # print('Testing  Accuracy = ' + str(np.round(torch.mean(test_tot).numpy(), 2))
     #       + ' +/- ' + str(np.round(torch.std(test_tot).numpy(),2)))
+
+    return accuracy

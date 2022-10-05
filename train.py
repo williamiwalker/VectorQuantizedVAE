@@ -15,6 +15,7 @@ from torchvision.transforms import ToTensor
 
 
 from vqvae_utils import rearrange_mnist, PairedMNISTDataset
+from vqvae_plot_utils import plot_digit_recognition, plot_loss
 from model import VQVAE, GSSOFT
 
 
@@ -74,11 +75,11 @@ def train_gssoft(args, saveFolder):
         download=True,
     )
 
-    # test_data = datasets.MNIST(
-    #     root='data',
-    #     train=False,
-    #     transform=ToTensor()
-    # )
+    test_data = datasets.MNIST(
+        root='data',
+        train=False,
+        transform=ToTensor()
+    )
 
     # Random seeds
     torch.manual_seed(1)
@@ -99,10 +100,10 @@ def train_gssoft(args, saveFolder):
         train_data.train_data, train_data.train_labels, num_factors, train_length=train_length, sub_ids=sub_ids)
     training_dataset = PairedMNISTDataset(training_data, train_labels)
 
-    # # Rearrange MNIST by grouping num_factors Conditionally independent Observations together
-    # test_data, test_labels = rearrange_mnist(
-    #     test_data.test_data, test_data.test_labels, num_factors, train_length=test_length, sub_ids=sub_ids)
-    # test_dataset = PairedMNISTDataset(test_data, test_labels)
+    # Rearrange MNIST by grouping num_factors Conditionally independent Observations together
+    test_data, test_labels = rearrange_mnist(
+        test_data.test_data, test_data.test_labels, num_factors, train_length=test_length, sub_ids=sub_ids)
+    test_dataset = PairedMNISTDataset(test_data, test_labels)
 
     # transform = transforms.Compose([
     #     transforms.ToTensor(),
@@ -118,8 +119,8 @@ def train_gssoft(args, saveFolder):
     training_dataloader = DataLoader(training_dataset, batch_size=args.batch_size, shuffle=True,
                                      num_workers=args.num_workers, pin_memory=True)
 
-    # test_dataloader = DataLoader(test_dataset, batch_size=64, shuffle=True, drop_last=True,
-    #                              num_workers=args.num_workers, pin_memory=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=64, shuffle=True, drop_last=True,
+                                 num_workers=args.num_workers, pin_memory=True)
 
     num_epochs = args.num_epochs #args.num_training_steps // len(training_dataloader) + 1
     # start_epoch = global_step // len(training_dataloader) + 1
@@ -210,6 +211,12 @@ def train_gssoft(args, saveFolder):
 
     save_checkpoint(model, optimizer, global_step, lossTrack, checkpoint_dir)
 
+    plot_loss(saveFolder, lossTrack)
+
+    train_accuracy = plot_digit_recognition(saveFolder, 'digit_recognition', model, training_dataloader)
+    test_accuracy  = plot_digit_recognition(saveFolder, 'digit_recognition', model, test_dataloader)
+
+    return train_accuracy, test_accuracy
 
 def train_vqvae(args, saveFolder):
     print('args',args)
@@ -253,11 +260,11 @@ def train_vqvae(args, saveFolder):
         download=True,
         )
 
-    # test_data = datasets.MNIST(
-    #     root='data',
-    #     train=False,
-    #     transform=ToTensor()
-    #     )
+    test_data = datasets.MNIST(
+        root='data',
+        train=False,
+        transform=ToTensor()
+        )
 
     # Random seeds
     torch.manual_seed(1)
@@ -278,10 +285,10 @@ def train_vqvae(args, saveFolder):
         train_data.train_data, train_data.train_labels, num_factors, train_length=train_length, sub_ids=sub_ids)
     training_dataset = PairedMNISTDataset(training_data, train_labels)
 
-    # # Rearrange MNIST by grouping num_factors Conditionally independent Observations together
-    # test_data, test_labels = rearrange_mnist(
-    #     test_data.test_data, test_data.test_labels, num_factors, train_length=test_length, sub_ids=sub_ids)
-    # test_dataset = PairedMNISTDataset(test_data, test_labels)
+    # Rearrange MNIST by grouping num_factors Conditionally independent Observations together
+    test_data, test_labels = rearrange_mnist(
+        test_data.test_data, test_data.test_labels, num_factors, train_length=test_length, sub_ids=sub_ids)
+    test_dataset = PairedMNISTDataset(test_data, test_labels)
 
     # transform = transforms.Compose([
     #     transforms.ToTensor(),
@@ -297,8 +304,8 @@ def train_vqvae(args, saveFolder):
     training_dataloader = DataLoader(training_dataset, batch_size=args.batch_size, shuffle=True,
                                      num_workers=args.num_workers, pin_memory=True)
 
-    # test_dataloader = DataLoader(test_dataset, batch_size=64, shuffle=True, drop_last=True,
-    #                              num_workers=args.num_workers, pin_memory=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=64, shuffle=True, drop_last=True,
+                                 num_workers=args.num_workers, pin_memory=True)
 
     num_epochs = args.num_epochs #args.num_training_steps // len(training_dataloader) + 1
     # start_epoch = global_step // len(training_dataloader) + 1
@@ -394,6 +401,15 @@ def train_vqvae(args, saveFolder):
 
     save_checkpoint(model, optimizer, global_step, lossTrack, checkpoint_dir)
 
+    # plot_VAE_reconst(saveFolder, 'reconstructions', images, outputs)
+
+    plot_loss(saveFolder, lossTrack)
+
+    train_accuracy = plot_digit_recognition(saveFolder, 'digit_recognition', model, training_dataloader)
+    test_accuracy  = plot_digit_recognition(saveFolder, 'digit_recognition', model, test_dataloader)
+
+    return train_accuracy, test_accuracy
+
 
 # if __name__ == "__main__":
 #     parser = argparse.ArgumentParser()
@@ -422,9 +438,9 @@ SLURM_ARRAY_TASK_ID = sys.argv[1]
 print('SLURM_ARRAY_TASK_ID ',SLURM_ARRAY_TASK_ID)
 
 # ARG_FILE_NAME = 'arguments_test_all_0.json'
-ARG_FILE_NAME = 'arguments_VQVAE_3.json'
-parent_folder = '/nfs/gatsbystor/williamw/svae/'
-# parent_folder = '/home/william/mnt/gatsbystor/implicit_generative/'
+ARG_FILE_NAME = 'arguments_VQVAE_4.json'
+parent_folder = '/nfs/gatsbystor/williamw/gprpm_plots/'
+# parent_folder = '/home/william/mnt/gatsbystor/gprpm_plots/'
 ARGUMENT_FILE = parent_folder + 'arg_files/' + ARG_FILE_NAME
 
 with open(ARGUMENT_FILE) as json_file:
@@ -449,6 +465,15 @@ kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
 
 args = argparse.Namespace(**paramDict)
 if args.model == "VQVAE":
-    train_vqvae(args, saveFolder)
+    train_accuracy, test_accuracy = train_vqvae(args, saveFolder)
 if args.model == "GSSOFT":
-    train_gssoft(args, saveFolder)
+    train_accuracy, test_accuracy = train_gssoft(args, saveFolder)
+
+print('train accuracy', train_accuracy)
+print('test accuracy', test_accuracy)
+
+# save train and test accuracy in json
+accuracy = {'train':float(train_accuracy), 'test':float(test_accuracy)}
+accuracy_file = saveFolder + 'accuracy.json'
+with open(accuracy_file, 'w') as f:
+    json.dump(accuracy, f, indent=4)

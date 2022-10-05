@@ -7,9 +7,11 @@ import os
 ################################
 # VQVAE ARGUMENTS
 ################################
-SUBFOLDER_NAME = 'VQVAE_3'
+SUBFOLDER_NAME = 'VQVAE_4'
 ARG_FILE_NAME = 'arguments_' + SUBFOLDER_NAME +'.json'
-ARGUMENT_FILE = '/nfs/gatsbystor/williamw/svae/arg_files/'+ARG_FILE_NAME
+# ARGUMENT_FILE = '/nfs/gatsbystor/williamw/gprpm_plots/arg_files/'+ARG_FILE_NAME
+ARGUMENT_FILE = '/home/william/mnt/gatsbystor/gprpm_plots/arg_files/'+ARG_FILE_NAME
+
 
 COMMENTS = {'GSSOFT':'paired MNIST images data. Using gumbel softmax VAE',
             'VQVAE': 'paired MNIST images data. Using vector quantized VAE'
@@ -39,6 +41,7 @@ mainArgs = {
 'num_epochs': 200
 }
 
+num_jobs = 10
 MODEL_TYPES = ['VQVAE','GSSOFT']
 
 
@@ -47,13 +50,14 @@ MODEL_TYPES = ['VQVAE','GSSOFT']
 arguments = {}
 
 job_index = 0
-for indm, modelType in enumerate(MODEL_TYPES):
-    currDict = mainArgs.copy()
-    currDict['model'] = modelType
-    currDict['SUB_FOLDER'] = modelType
-    currDict['COMMENTS'] = COMMENTS[modelType]
-    arguments[job_index] = currDict
-    job_index += 1
+for indj in range(num_jobs):
+    for indm, modelType in enumerate(MODEL_TYPES):
+        currDict = mainArgs.copy()
+        currDict['model'] = modelType
+        currDict['SUB_FOLDER'] = modelType + '_' + str(indj)
+        currDict['COMMENTS'] = COMMENTS[modelType]
+        arguments[job_index] = currDict
+        job_index += 1
 
 print('sbatch --array=0-'+ str(job_index-1) + ' train_VQVAE.sbatch')
 

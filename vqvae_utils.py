@@ -68,7 +68,7 @@ def rearrange_mnist(train_images, train_labels, num_factors,
     # make image value range between 0 and 1
     max_val = torch.max(train_images_factors)
 
-    observations = np.array([train_images_factors[:, ii] for ii in range(num_factors)])
+    observations = np.array([train_images_factors[:, ii].numpy() for ii in range(num_factors)])
 
     # Reshape Training Labels
     train_images_new = train_images_factors.reshape(num_obs * num_factors, image_size, image_size)

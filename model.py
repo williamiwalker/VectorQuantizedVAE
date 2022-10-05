@@ -159,30 +159,31 @@ class Residual(nn.Module):
         return x + self.block(x)
 
 
-class Encoder(nn.Module):
-    def __init__(self, channels, latent_dim, embedding_dim):
-        super(Encoder, self).__init__()
-        self.encoder = nn.Sequential(
-            nn.Conv2d(2, channels, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(channels),
-            nn.ReLU(True),
-            nn.Conv2d(channels, channels, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(channels),
-            Residual(channels),
-            Residual(channels),
-            nn.Conv2d(channels, latent_dim * embedding_dim, 1)
-        )
-        self.linear = nn.Linear(latent_dim * embedding_dim * 7 * 7, latent_dim * embedding_dim)  # input
-        self.channels = channels
-        self.latent_dim = latent_dim
-        self.embedding_dim = embedding_dim
+# class Encoder(nn.Module):
+#     def __init__(self, channels, latent_dim, embedding_dim):
+#         super(Encoder, self).__init__()
+#         self.encoder = nn.Sequential(
+#             nn.Conv2d(2, channels, 4, 2, 1, bias=False),
+#             nn.BatchNorm2d(channels),
+#             nn.ReLU(True),
+#             nn.Conv2d(channels, channels, 4, 2, 1, bias=False),
+#             nn.BatchNorm2d(channels),
+#             Residual(channels),
+#             Residual(channels),
+#             nn.Conv2d(channels, latent_dim * embedding_dim, 1)
+#         )
+#         self.linear = nn.Linear(latent_dim * embedding_dim * 7 * 7, latent_dim * embedding_dim)  # input
+#         self.channels = channels
+#         self.latent_dim = latent_dim
+#         self.embedding_dim = embedding_dim
 
-    def forward(self, x):
-        batchSize = x.shape[0]
-        # print('encoder output',self.encoder(x).shape, self.latent_dim, self.embedding_dim, self.channels)
-        y = self.encoder(x)
-        z = self.linear(torch.flatten(y, start_dim=1))
-        return z.view((batchSize, self.latent_dim * self.embedding_dim, 1, 1))
+#     def forward(self, x):
+#         batchSize = x.shape[0]
+#         # print('encoder output',self.encoder(x).shape, self.latent_dim, self.embedding_dim, self.channels)
+#         y = self.encoder(x)
+#         print('encoder shape',y.shape)
+#         z = self.linear(torch.flatten(y, start_dim=1))
+#         return z.view((batchSize, self.latent_dim * self.embedding_dim, 1, 1))
 
 
 class Decoder(nn.Module):
@@ -253,3 +254,56 @@ class GSSOFT(nn.Module):
     def getDiscreteLatent(self, x):
         enc = self.encoder(x)
         return self.codebook.getDiscLatent(enc)
+
+
+
+
+# This is the same network used in RPM recognition network
+
+class Encoder(nn.Module):
+    def __init__(self, channels, latent_dim, embedding_dim):
+        super(Encoder, self).__init__()
+        # self.encoder = nn.Sequential(
+        #     nn.Conv2d(2, 10, kernel_size=5),
+        #     F.max_pool2d()
+        #     nn.Conv2d(10, 20, kernel_size=5),
+        #     nn.Dropout2d()
+        # )
+        self.linear2 = nn.Linear(50, latent_dim * embedding_dim)  # input
+        self.channels = channels
+        self.latent_dim = latent_dim
+        self.embedding_dim = embedding_dim
+
+        self.conv1 = nn.Conv2d(2, 10, kernel_size=5)
+        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+        self.conv2_drop = nn.Dropout2d()
+        self.fc1 = nn.Linear(4*4*20, 50)
+        self.fc2 = nn.Linear(50, 10)
+
+
+    def forward(self, x):
+        batchSize = x.shape[0]
+        a = F.relu(F.max_pool2d(self.conv1(x), 2))
+        a = F.relu(F.max_pool2d(self.conv2(a), 2))
+        a = a.view(-1, 4*4*20)
+        y = F.relu(self.fc1(a))
+        z2 = self.linear2(y)
+        return z2.view((batchSize, self.latent_dim * self.embedding_dim, 1, 1))
+
+class Net(nn.Module):
+    # Convolutional Neural Network shared across independent factors
+    def __init__(self, num_digits):
+        super(Net, self).__init__()
+        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
+        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+        self.conv2_drop = nn.Dropout2d()
+        self.fc1 = nn.Linear(4*4*20, 50)
+        self.fc2 = nn.Linear(50, num_digits)
+
+    def forward(self, x):
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(F.max_pool2d(self.conv2(x), 2))
+        x = x.view(-1, 4*4*20)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return F.log_softmax(x, dim=-1)
