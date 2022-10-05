@@ -14,7 +14,7 @@ from torchvision import datasets, transforms, utils
 from torchvision.transforms import ToTensor
 
 
-from utils import rearrange_mnist, PairedMNISTDataset
+from vqvae_utils import rearrange_mnist, PairedMNISTDataset
 from model import VQVAE, GSSOFT
 
 
