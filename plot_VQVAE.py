@@ -14,14 +14,18 @@ from torch.utils.data import DataLoader
 from vqvae_plot_utils import plot_VAE_reconst, plot_digit_recognition
 
 
-# plot_folder = '/nfs/ghome/live/williamw/git/brainscore/RPM_brain/'
-plot_folder = '/nfs/ghome/live/williamw/git/implicit_generative/'
+# plot_folder = '/nfs/ghome/live/williamw/git/implicit_generative/'
+# plot_folder = '/nfs/ghome/live/williamw/git/implicit_generative/'
+# plot_folder = '/nfs/ghome/live/williamw/git/implicit_generative/'
+# plot_folder = '/home/william/git/implicit_generative/'
 
-# add python path to other plotting utils
-sys.path.append(plot_folder)
+# vqvae_folder = '/nfs/gatsbystor/williamw/gprpm_plots/VQVAE_4/'
 
-# from helper_functions.plotting_functions import plotFreeEnergy
-from helper_modules.plot_functions import plotFreeEnergy
+# # add python path to other plotting utils
+# sys.path.append(plot_folder)
+
+# # from helper_functions.plotting_functions import plotFreeEnergy
+# from helper_modules.plot_functions import plotFreeEnergy
 
 
 # just check if cuda is available
@@ -35,8 +39,9 @@ device = torch.device("cuda" if cuda else "cpu")
 SLURM_ARRAY_TASK_ID = sys.argv[1]
 print('SLURM_ARRAY_TASK_ID ',SLURM_ARRAY_TASK_ID)
 
-ARG_FILE_NAME = 'arguments_VQVAE_3.json'
-parent_folder = '/nfs/gatsbystor/williamw/gprpm_plots/'
+ARG_FILE_NAME = 'arguments_VQVAE_4.json'
+# parent_folder = '/nfs/gatsbystor/williamw/gprpm_plots/'
+parent_folder = '/home/william/mnt/gatsbystor/gprpm_plots/'
 ARGUMENT_FILE = parent_folder + 'arg_files/' + ARG_FILE_NAME
 
 with open(ARGUMENT_FILE) as json_file:
@@ -143,5 +148,15 @@ for images, _ in test_dataloader:
 
 plot_VAE_reconst(saveFolder, 'reconstructions', images, outputs)
 
-plot_digit_recognition(saveFolder, 'digit_recognition', model, test_dataloader)
+# plot_digit_recognition(saveFolder, 'digit_recognition', model, test_dataloader)
+train_accuracy = plot_digit_recognition(saveFolder, 'digit_recognition', model, training_dataloader)
+test_accuracy  = plot_digit_recognition(saveFolder, 'digit_recognition', model, test_dataloader)
 
+print('train accuracy', train_accuracy)
+print('test accuracy', test_accuracy)
+
+# save train and test accuracy in json
+accuracy = {'train':float(train_accuracy), 'test':float(test_accuracy)}
+accuracy_file = saveFolder + 'accuracy.json'
+with open(accuracy_file, 'w') as f:
+    json.dump(accuracy, f, indent=4)
