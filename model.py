@@ -143,6 +143,8 @@ class VQEmbeddingGSSoft(nn.Module):
         return indices.permute(1, 0)
 
 
+
+
 class Residual(nn.Module):
     def __init__(self, channels):
         super(Residual, self).__init__()
